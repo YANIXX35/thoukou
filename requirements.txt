@@ -1,5 +1,10 @@
-Django>=5.2,<5.3
-pyotp==2.10.0
-argon2-cffi>=23.1
-cryptography>=44.0
-qrcode[pil]>=8.0
+# Dépendances de SecureAuth (versions exactes, testées le 16/10/2026 avec Python 3.12)
+# Installation : python -m pip install -r requirements.txt
+
+Django==5.2.18          # framework web (ORM, sessions, CSRF, templates)
+argon2-cffi==25.1.0     # hachage des mots de passe avec Argon2id
+pyotp==2.10.0           # double authentification TOTP (RFC 6238)
+qrcode[pil]==8.2        # QR code pour configurer l'application TOTP
+pillow==12.3.0          # génération de l'image PNG du QR code
+cryptography==50.0.2    # chiffrement Fernet du secret TOTP en base
+tzdata==2026.5          # fuseaux horaires (nécessaire sous Windows)

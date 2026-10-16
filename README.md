@@ -1,62 +1,204 @@
-# SecureAuth — authentification sécurisée
+# SecureAuth — application web d'authentification sécurisée
 
-Projet individuel de 2e année : une application de comptes Django utilisant SQLite, avec authentification, gestion de profil, MFA et fonctions d’administration. Le code est une base pédagogique à expliquer, tester et auditer ; ne pas l’exposer sur Internet sans configuration de production, revue indépendante et gestion de secrets appropriée.
+Projet individuel de 2e année (Dev + Cyber). SecureAuth est un module de comptes
+réutilisable : inscription, connexion, profil, double authentification (TOTP),
+réinitialisation du mot de passe, espace administrateur et journal des
+événements de sécurité. L'objectif n'est pas seulement qu'il fonctionne, mais
+qu'il **résiste à de vraies attaques** et que cela soit **prouvé par des tests**.
 
-## Fonctionnalités réalisées
+- **Langage / framework** : Python 3.12 + Django 5.2
+- **Base de données** : SQLite (fichier local `db.sqlite3`)
+- **Hachage des mots de passe** : Argon2id
 
-- Inscription, validation serveur, unicité du nom et de l’e-mail, mots de passe robustes.
-- Hachage Argon2id via le hasher Django ; les mots de passe ne sont jamais journalisés.
-- Sessions Django, cookie HttpOnly/SameSite, expiration après 30 minutes d’inactivité ; cookie Secure en HTTPS.
-- Connexion avec une réponse générique, verrouillage par compte à durée exponentielle et limitation par IP.
-- Consultation/modification du profil et changement du mot de passe avec vérification de l’ancien.
-- MFA TOTP, QR code produit localement, protection du secret TOTP au repos avec Fernet et code dérivé de `DJANGO_SECRET_KEY`.
-- Codes de secours stockés hachés et consommés une seule fois ; rejet de la réutilisation d’un code TOTP.
-- Réinitialisation via lien aléatoire à usage unique, durée de 30 minutes, seul le SHA-256 du jeton est stocké. L’e-mail est capturé localement.
-- Rôle administrateur basé sur `is_staff`, appliqué dans les vues ; recherche, désactivation/réactivation, suppression et envoi de reset.
-- Journal d’audit avec horodatage, IP, acteur/compte concerné ; filtres côté admin et aucune valeur de mot de passe, TOTP ou jeton dans le journal.
-- CSRF Django, ORM, échappement des templates, CSP, X-Frame-Options et protections de cookies.
+> Projet pédagogique : ne pas l'exposer sur Internet sans configuration de
+> production et revue de sécurité.
 
-## Démarrage Windows (local)
+---
 
-PowerShell, depuis le dépôt :
+## 1. Installation (pas à pas)
+
+### Prérequis
+
+- **Python 3.12** (vérifier avec `python --version` ou `py --version`)
+- **Git**
+
+### Étapes (Windows, PowerShell)
 
 ```powershell
+# 1. Récupérer le projet
+git clone https://github.com/YANIXX35/thoukou.git
+cd thoukou
+
+# 2. Créer un environnement virtuel (dossier .venv, propre au projet)
 py -m venv .venv
+
+# 3. Installer les dépendances (versions exactes dans requirements.txt)
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 4. Créer la base SQLite et ses tables
 .\.venv\Scripts\python.exe manage.py migrate
+
+# 5. Créer un compte administrateur (nom, e-mail fictif, mot de passe >= 12 caractères)
 .\.venv\Scripts\python.exe manage.py createsuperuser
+
+# 6. Lancer le serveur
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Ouvrir <http://127.0.0.1:8000/>. Les e-mails de réinitialisation s’affichent dans la console. La MFA se configure depuis l’espace utilisateur : scanner le QR code local avec une application TOTP, puis saisir le code et le mot de passe. Les codes de secours ne s’affichent qu’une fois.
+Ouvrir ensuite <http://127.0.0.1:8000/> dans le navigateur.
 
-La `SECRET_KEY` de secours dans les paramètres est uniquement un secret de développement. En production, l’application refuse de démarrer sans `DJANGO_SECRET_KEY` ; définir aussi `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `PUBLIC_BASE_URL` et les origines CSRF exactes. Conserver la même clé durablement : elle chiffre les secrets TOTP. Si elle est perdue ou remplacée sans rotation organisée, les secrets TOTP existants ne pourront plus être déchiffrés. En production, les cookies Secure, HTTPS redirect et HSTS sont activés lorsque `DEBUG=False`.
+### Étapes (macOS / Linux)
 
-## Docker Compose et HTTPS local
-
-Docker Compose démarre l’application, Caddy avec certificat local et Mailpit (SMTP/UI de test) :
-
-```powershell
-docker compose up --build
+```bash
+git clone https://github.com/YANIXX35/thoukou.git && cd thoukou
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py createsuperuser
+.venv/bin/python manage.py runserver
 ```
 
-Visiter <https://localhost:8443/> ; le navigateur avertira du certificat d’autorité local Caddy jusqu’à ce que tu l’ajoutes comme autorité de confiance sur ta machine. L’interface Mailpit est sur <http://localhost:8025/>. Seuls des e-mails fictifs de test doivent être utilisés. Les volumes `sqlite_data` et `caddy_data` conservent la base et l’autorité locale entre redémarrages.
+### Dépendances installées (`requirements.txt`)
 
-Pour les comptes d’administration dans le conteneur :
+| Paquet | Rôle |
+|---|---|
+| Django | Framework web : ORM (requêtes préparées), sessions, CSRF, templates échappés |
+| argon2-cffi | Hachage Argon2id des mots de passe |
+| pyotp | Codes TOTP de la double authentification |
+| qrcode + pillow | QR code à scanner avec l'application d'authentification |
+| cryptography | Chiffrement Fernet du secret TOTP stocké en base |
+| tzdata | Fuseaux horaires (requis sous Windows) |
+
+### Problèmes fréquents
+
+| Erreur | Cause | Solution |
+|---|---|---|
+| `.\.venv\Scripts\python.exe n'est pas reconnu` | Le terminal n'est pas dans le dossier du projet | `cd` dans le dossier qui contient `manage.py` |
+| `git add.` ne fonctionne pas | Espace manquant | `git add .` |
+| Le commit échoue (« Please tell me who you are ») | Identité Git non configurée | `git config --global user.name "Nom"` puis `git config --global user.email "mail"` |
+| Page « Interdit (403) — vérification CSRF » à la connexion | Ancienne page gardée par le navigateur | Fermer l'onglet et rouvrir `http://127.0.0.1:8000/login/` (corrigé, voir §3) |
+
+---
+
+## 2. Lancer les tests
 
 ```powershell
-docker compose exec web python manage.py createsuperuser
+.\.venv\Scripts\python.exe manage.py check                         # configuration
+.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run   # modèles = migrations
+.\.venv\Scripts\python.exe manage.py test                          # 56 tests automatisés
 ```
 
-## Tests et contrôles
+Les tests couvrent : inscription et validation, hachage Argon2id, cookies de
+session, CSRF, messages d'erreur identiques (pas d'énumération de comptes),
+verrouillage par compte et limitation par IP, accès au profil d'autrui,
+changement de mot de passe, 2FA (rejeu, codes de secours, chiffrement du secret),
+réinitialisation (jeton expiré / à usage unique), contrôle d'accès administrateur,
+journal de sécurité et en-têtes HTTP.
 
-```powershell
-.\.venv\Scripts\python.exe manage.py check
-.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run
-.\.venv\Scripts\python.exe manage.py test
+---
+
+## 3. Ce que nous avons fait — journal de bord
+
+### 16/10/2026 — Préparation de l'environnement et vérification
+
+**Objectif** : préparer l'environnement, suivre le code avec Git et vérifier que
+l'application fonctionne en local avec SQLite (sans Docker ni PostgreSQL).
+
+**Réalisé :**
+
+1. **Environnement** : Python 3.12.10 et Django 5.2.18 vérifiés, environnement
+   virtuel `.venv` créé, dépendances installées.
+2. **Git** : identité configurée (`git config user.name / user.email`), premier
+   commit de référence, `.venv` et `db.sqlite3` exclus du dépôt (`.gitignore`).
+3. **Vérification Django** :
+   - `manage.py check` → aucune erreur ;
+   - `makemigrations --check` → modèles et migrations cohérents ;
+   - `migrate` → base SQLite créée ;
+   - serveur lancé, pages contrôlées :
+
+   | Page | Résultat |
+   |---|---|
+   | `/` | redirige vers `/login/` |
+   | `/login/`, `/register/`, `/password_reset/` | 200 OK |
+   | `/dashboard/` sans être connecté | redirige vers la connexion |
+   | `/security-admin/users/` sans être connecté | redirige vers la connexion |
+
+4. **Compte administrateur** créé avec `createsuperuser`, connexion réussie,
+   l'événement « Connexion réussie » apparaît dans le journal avec date et IP
+   (sans mot de passe).
+5. **`requirements.txt`** : versions exactes figées et vérifiées dans un
+   environnement neuf.
+
+**Difficultés rencontrées et solutions :**
+
+- `git add.` → il manque l'espace : `git add .`
+- Commit impossible → identité Git non configurée, réglée avec `git config`.
+- **Erreur 403 CSRF à la connexion** (« la valeur nulle ne correspond à aucune
+  origine de confiance ») :
+  - *Cause* : l'en-tête `Referrer-Policy: no-referrer` fait envoyer
+    `Origin: null` par Chrome lors de l'envoi d'un formulaire ; le contrôle
+    d'origine CSRF de Django refuse alors la requête. Les tests ne l'avaient pas
+    vu car le client de test de Django n'envoie pas d'en-tête `Origin`.
+  - *Correction* : passage à `Referrer-Policy: same-origin` (l'origine est
+    envoyée à notre site, jamais aux sites externes : un lien de réinitialisation
+    ne fuit toujours pas vers un autre site).
+  - *Complément* : les pages HTML sont envoyées avec `Cache-Control: no-store`
+    pour que le navigateur ne réutilise jamais un formulaire périmé (et ne garde
+    pas de données personnelles en cache).
+  - *Tests ajoutés* : en-tête `same-origin`, connexion « comme un navigateur »
+    avec en-tête `Origin` acceptée, requête avec `Origin: null` toujours
+    refusée, pages non mises en cache. **56 tests passent.**
+
+**Prochaines étapes :** vérification complète du socle d'authentification,
+schéma de base de données et schémas des flux, modèle de menaces (≥ 6 menaces),
+5 tests d'attaque documentés.
+
+---
+
+## 4. Fonctionnalités présentes
+
+- **Inscription** : validation côté serveur (e-mail valide, unicité, mot de passe
+  ≥ 12 caractères, non courant, non uniquement numérique, différent du nom).
+- **Mots de passe** : hachés avec Argon2id (sel aléatoire inclus), jamais en clair
+  ni dans la base ni dans les logs.
+- **Sessions** : cookie `HttpOnly`, `SameSite=Lax`, `Secure` en HTTPS, expiration
+  après 30 min d'inactivité et à la fermeture du navigateur ; identifiant de
+  session renouvelé à la connexion.
+- **Connexion** : message d'erreur identique que le compte existe ou non ;
+  redirection `next` limitée au site (pas de redirection ouverte).
+- **Anti brute force** : verrouillage du compte après 5 échecs, durée croissante
+  (5, 10, 20 min… jusqu'à 24 h) ; limitation à 20 échecs par IP sur 15 min.
+- **Profil** : consultation / modification de ses propres informations ;
+  changement de mot de passe avec l'ancien mot de passe.
+- **2FA TOTP** : activation par QR code, secret chiffré en base (Fernet), codes
+  non rejouables, 8 codes de secours à usage unique stockés hachés, désactivation
+  avec mot de passe + code.
+- **Réinitialisation** : lien aléatoire à usage unique, valable 30 min, seul le
+  SHA-256 du jeton est stocké, réponse identique que l'e-mail existe ou non.
+- **Administration** (rôle `is_staff`, vérifié côté serveur) : recherche,
+  désactivation / réactivation, suppression, envoi d'un lien de réinitialisation.
+- **Journal de sécurité** : connexions réussies / échouées, 2FA, changements de
+  mot de passe, actions admin, avec date et IP, filtrable, sans donnée sensible.
+- **Protections de base** : ORM (requêtes préparées), auto-échappement des
+  templates (XSS), CSRF, en-têtes `Content-Security-Policy`, `X-Frame-Options`,
+  `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
+
+## 5. Structure du projet
+
+```
+config/            configuration Django (settings.py, urls.py)
+accounts/          application principale
+  models.py        profils, codes de secours, jetons de reset, journal
+  views.py         écrans et logique (connexion, 2FA, reset, admin)
+  forms.py         formulaires et validation côté serveur
+  middleware.py    en-têtes de sécurité
+  tests.py         tests automatisés
+templates/         pages HTML
+static/            CSS et JavaScript
+requirements.txt   dépendances
 ```
 
-Les tests couvrent inscription, hachage Argon2, sessions/CSRF, erreurs de connexion uniformes, verrouillage et limitation IP, isolement du profil, réauthentification, MFA/rejeu/codes de secours/chiffrement, reset expiré/à usage unique et contrôle d’accès administrateur.
+## 6. Conception et sécurité
 
 ### Schéma de données simplifié
 
@@ -90,50 +232,38 @@ erDiagram
     }
 ```
 
-### Flux connexion
+### Flux de connexion
 
 ```mermaid
 flowchart TD
-    A[Formulaire HTTPS + CSRF] --> B{Limite IP atteinte ?}
-    B -- oui --> E[Réponse générique + audit]
-    B -- non --> C[Auth Django / Argon2id]
-    C -- échec ou compte verrouillé --> D[Compteur compte + délai croissant + audit]
-    C -- succès, MFA désactivée --> F[Session Django renouvelée]
-    C -- succès, MFA active --> G[Session d'attente MFA, sans utilisateur connecté]
-    G --> H{TOTP valide inédit ou code de secours inédit ?}
+    A[Formulaire + jeton CSRF] --> B{Limite IP atteinte ?}
+    B -- oui --> E[Réponse générique + journal]
+    B -- non --> C[Vérification Argon2id]
+    C -- échec ou compte verrouillé --> D[Compteur + verrouillage croissant + journal]
+    C -- succès, 2FA désactivée --> F[Nouvelle session]
+    C -- succès, 2FA activée --> G[Attente 2FA, pas encore connecté]
+    G --> H{Code TOTP ou code de secours valide et inédit ?}
     H -- non --> D
     H -- oui --> F
 ```
 
 ### Menaces et mesures
 
-| Menace | Mesure implémentée | Test/contrôle |
+| Menace | Mesure | Contrôle |
 |---|---|---|
-| Vol de mots de passe en base | Argon2id Django avec sel | Vérification du format stocké |
-| Énumération des comptes via login/reset | Message de login générique, confirmation reset uniforme | Tests d’erreur générique |
-| Force brute distribuée ou locale | Temporisation croissante par compte et seuil d’IP | Tests de verrouillage et throttling |
-| Vol/réutilisation de code MFA | TOTP avec compteur consommé et codes de secours à usage unique | Tests de rejeu |
-| Vol de secret MFA en base | Chiffrement Fernet dérivé de la clé applicative | Test de chiffrement au repos |
-| CSRF, XSS et injection | Middleware/token CSRF, auto-échappement, ORM | Test CSRF, revue manuelle |
-| Accès à un autre profil / abus admin | Profil déterminé exclusivement par la session, vues staff-only, mutations POST | Tests d’autorisation |
-| Reset détourné/réutilisé | Token aléatoire, digest seul en base, expiration/consommation atomique | Tests d’expiration et usage unique |
+| Vol de la base de mots de passe | Argon2id avec sel | Test du format stocké |
+| Énumération des comptes | Messages identiques (connexion, reset) | Tests de message générique |
+| Brute force / password spraying | Verrouillage croissant par compte + limite par IP | Tests de verrouillage |
+| Vol ou rejeu d'un code 2FA | Compteur TOTP consommé, codes de secours à usage unique | Tests de rejeu |
+| Vol du secret 2FA en base | Chiffrement Fernet | Test de chiffrement au repos |
+| CSRF, XSS, injection SQL | Jeton CSRF + contrôle d'origine, auto-échappement, ORM | Tests CSRF et XSS |
+| Accès au profil d'autrui / aux fonctions admin | Profil lié à la session, vues admin vérifiées côté serveur, actions en POST | Tests d'autorisation |
+| Lien de reset détourné ou réutilisé | Jeton aléatoire haché, 30 min, usage unique | Tests d'expiration et d'usage unique |
 
-### Cinq tests d’attaque documentés
+## 7. Utilisation de l'IA
 
-1. **Mot de passe incorrect et utilisateur inconnu** : tenter les deux et comparer le message. Le message ne révèle pas l’existence du compte.
-2. **Force brute** : cinq erreurs sur un compte actif puis essayer un mot de passe correct ; l’accès reste refusé pendant le verrouillage. Répéter depuis une même IP jusqu’au seuil configuré.
-3. **Contournement MFA** : valider le mot de passe puis requêter directement `/dashboard/` ou réutiliser un ancien code TOTP ; la session n’est authentifiée qu’après le second facteur et le code ne peut être rejoué.
-4. **CSRF** : poster un formulaire sans jeton CSRF avec un client de test ; Django renvoie 403.
-5. **Accès non autorisé** : appeler une action d’administration comme utilisateur normal ou tenter une mutation via GET ; l’accès est redirigé/refusé et les mutations n’acceptent que POST.
-
-### Auto-audit ZAP / vérification manuelle
-
-Le scan ZAP n’est pas lancé automatiquement par cette application. Pour produire le livrable de scan, démarrer le Compose, configurer ZAP en mode local sur `https://localhost:8443`, accepter le certificat Caddy pour le proxy de test, explorer les pages de connexion/profil/MFA/reset/admin avec des comptes fictifs puis lancer le scan passif. Tester les contrôles actifs uniquement sur cette instance locale. Conserver le rapport et classer chaque alerte : faux positif, corrigé ou accepté avec justification. Refaire le scan après correction. La configuration HTTPS locale et les tests Django ne remplacent pas une revue ZAP ou une revue de code indépendante.
-
-## Limites / améliorations possibles
-
-Ce projet est pédagogique : le stockage des sessions utilise SQLite, l’audit en base n’est pas infalsifiable, la détection IP n’identifie pas un pays et les rôles restent volontairement simples (`is_staff`). L’application n’accepte `X-Forwarded-For` que depuis une IP déclarée dans `TRUSTED_PROXY_IPS` ; Compose fixe Caddy à `172.28.0.2` et remplace l’en-tête reçu du navigateur. Pour un autre proxy, configure explicitement son IP et fais-lui remplacer cet en-tête. Pour un déploiement réel, ajouter gestion/rotation de secrets, sauvegardes, base adaptée à la concurrence, surveillance d’alertes, vérification de mots de passe compromis, stratégie de récupération MFA et procédure de réponse aux incidents.
-
-## Assistance par IA
-
-L’assistance IA a servi à implémenter, expliquer et tester certaines parties du projet. L’étudiant doit relire et comprendre le code, compléter son journal conformément aux consignes et pouvoir justifier chaque choix en soutenance.
+Conformément aux règles du projet, l'IA générative (Claude) a été utilisée comme
+aide : vérification de l'environnement, diagnostic et correction de l'erreur CSRF,
+ajout de tests et rédaction de cette documentation. Chaque modification est
+relue, comprise et notée dans le journal de bord ; l'étudiant doit pouvoir
+l'expliquer en soutenance.
