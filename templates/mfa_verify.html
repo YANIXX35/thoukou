@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card auth-card">
+    <h1>Vérification MFA</h1>
+    <p>Entrez un code TOTP ou un code de secours non utilisé.</p>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="field">
+            <label for="id_code">Code MFA</label>
+            {{ form.code }}
+            {{ form.code.errors }}
+        </div>
+
+        <button type="submit" class="primary-button">Valider</button>
+    </form>
+</div>
+{% endblock %}

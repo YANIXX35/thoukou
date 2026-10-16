@@ -1,0 +1,56 @@
+services:
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SECRET_KEY: "replace-this-development-key-before-any-real-deployment"
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,web"
+      SECURE_COOKIES: "true"
+      CSRF_TRUSTED_ORIGINS: "https://localhost:8443"
+      PUBLIC_BASE_URL: "https://localhost:8443"
+      DATABASE_PATH: "/app/data/db.sqlite3"
+      EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+      EMAIL_HOST: "mailpit"
+      EMAIL_PORT: "1025"
+      DEFAULT_FROM_EMAIL: "noreply@secureauth.local"
+      TRUSTED_PROXY_IPS: "172.28.0.2"
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+    depends_on:
+      - mailpit
+    networks:
+      - secureauth_net
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    networks:
+      secureauth_net:
+        ipv4_address: 172.28.0.2
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks:
+      - secureauth_net
+
+volumes:
+  sqlite_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  secureauth_net:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

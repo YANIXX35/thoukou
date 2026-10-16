@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>Mon profil</h1>
+    <section class="panel">
+        <h2>Informations personnelles</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="profile">
+            {{ profile_form.non_field_errors }}
+            {% for field in profile_form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+            {% endfor %}
+            <button type="submit" class="primary-button">Enregistrer</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>Modifier le mot de passe</h2>
+        <p>Le mot de passe actuel est obligatoire. Choisissez un nouveau mot de passe unique et robuste.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="password">
+            {{ password_form.non_field_errors }}
+            {% for field in password_form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+            {% endfor %}
+            <button type="submit" class="primary-button">Changer le mot de passe</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

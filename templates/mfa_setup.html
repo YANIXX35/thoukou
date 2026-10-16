@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card auth-card">
+    <h1>Authentification multifacteur</h1>
+
+    <p class="status warning">Scannez ce QR code avec votre application TOTP. Le QR est généré localement et n’est transmis à aucun service tiers.</p>
+
+    <div class="mfa-box">
+        <img src="{% url 'mfa_qr' %}" alt="QR code MFA" class="qr-code">
+        <p>Si le scan échoue, saisissez ce secret dans votre application : <code>{{ otp_secret }}</code></p>
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="field">
+            <label for="id_password">Mot de passe actuel</label>
+            {{ form.password }}
+            {{ form.password.errors }}
+        </div>
+        <div class="field">
+            <label for="id_code">Code de validation</label>
+            {{ form.code }}
+            {{ form.code.errors }}
+        </div>
+
+        <div class="button-stack inline-buttons">
+            <button type="submit" class="primary-button">Valider la MFA</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

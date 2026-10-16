@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card auth-card">
+    <h1>Inscription</h1>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="field">
+            <label for="id_username">Nom d'utilisateur</label>
+            {{ form.username }}
+            {{ form.username.errors }}
+        </div>
+
+        <div class="field">
+            <label for="id_email">E-mail</label>
+            {{ form.email }}
+            {{ form.email.errors }}
+        </div>
+
+        <div class="field">
+            <label for="id_password1">Mot de passe</label>
+            {{ form.password1 }}
+            {{ form.password1.errors }}
+        </div>
+
+        <div class="field">
+            <label for="id_password2">Confirmation du mot de passe</label>
+            {{ form.password2 }}
+            {{ form.password2.errors }}
+        </div>
+
+        <button type="submit" class="primary-button">Créer mon compte</button>
+    </form>
+
+    <p class="auth-links">Déjà inscrit ? <a href="{% url 'login' %}">Se connecter</a></p>
+</div>
+{% endblock %}

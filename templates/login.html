@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card auth-card">
+    <h1>Connexion</h1>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="field">
+            <label for="id_username">Nom d'utilisateur</label>
+            {{ form.username }}
+            {{ form.username.errors }}
+        </div>
+
+        <div class="field">
+            <label for="id_password">Mot de passe</label>
+            {{ form.password }}
+            {{ form.password.errors }}
+        </div>
+
+        <button type="submit" class="primary-button">Se connecter</button>
+    </form>
+
+    <div class="auth-links">
+        <p>Pas encore de compte ? <a href="{% url 'register' %}">Créer un compte</a></p>
+        <p><a href="{% url 'password_reset' %}">Mot de passe oublié ?</a></p>
+    </div>
+</div>
+{% endblock %}

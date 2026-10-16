@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card dashboard-card">
+    <h1>Bienvenue, {{ user.username }}</h1>
+    <p>Vous êtes connecté au tableau de bord sécurisé de SecureAuth.</p>
+
+    {% if new_backup_codes %}
+        <section class="panel backup-codes">
+            <h2>Codes de secours — à conserver maintenant</h2>
+            <p>Chaque code ne peut être utilisé qu’une fois. Ils ne seront plus affichés après cette page.</p>
+            <ul>{% for code in new_backup_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+        </section>
+    {% endif %}
+
+    <div class="dashboard-grid">
+        <section class="panel">
+            <h2>Informations du compte</h2>
+            <ul>
+                <li>Nom d'utilisateur : {{ user.username }}</li>
+                <li>E-mail : {{ user.email|default:'Non renseigné' }}</li>
+                <li>Statut MFA : {% if user.profile.otp_enabled %}Activée{% else %}Désactivée{% endif %}</li>
+            </ul>
+        </section>
+
+        <section class="panel">
+            <h2>Actions</h2>
+            <div class="button-stack">
+                <a href="{% url 'mfa_setup' %}" class="secondary-button">{% if user.profile.otp_enabled %}Gérer la MFA{% else %}Activer la MFA{% endif %}</a>
+                <a href="{% url 'password_reset' %}" class="secondary-button">Réinitialiser le mot de passe</a>
+                <a href="{% url 'profile' %}" class="secondary-button">Modifier mon profil / mot de passe</a>
+            </div>
+        </section>
+    </div>
+
+    <section class="panel log-panel">
+        <h2>Journal d'audit</h2>
+        {% if audit_events %}
+            <ul class="audit-list">
+                {% for event in audit_events %}
+                    <li>
+                        <strong>{{ event.get_event_type_display }}</strong>
+                        <span>{{ event.message }}</span>
+                        <small>{{ event.created_at|date:'d/m/Y H:i' }}{% if event.ip_address %} · {{ event.ip_address }}{% endif %}</small>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Aucun événement enregistré pour le moment.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

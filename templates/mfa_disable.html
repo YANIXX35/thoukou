@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card auth-card">
+    <h1>Désactiver la MFA</h1>
+    <p>Confirmez votre identité avec votre mot de passe et le code TOTP actuel.</p>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="field">
+            <label for="id_password">Mot de passe actuel</label>
+            {{ form.password }}
+            {{ form.password.errors }}
+        </div>
+        <div class="field">
+            <label for="id_code">Code de confirmation</label>
+            {{ form.code }}
+            {{ form.code.errors }}
+        </div>
+
+        <button type="submit" class="primary-button">Désactiver</button>
+    </form>
+</div>
+{% endblock %}
