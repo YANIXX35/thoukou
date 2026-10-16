@@ -11,4 +11,8 @@ class SecurityHeadersMiddleware:
         )
         response.setdefault('Referrer-Policy', 'same-origin')
         response.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+        # Pages HTML jamais mises en cache : pas de formulaire périmé réutilisé
+        # par le navigateur, ni de données personnelles gardées en mémoire.
+        if response.get('Content-Type', '').startswith('text/html'):
+            response.setdefault('Cache-Control', 'no-store')
         return response

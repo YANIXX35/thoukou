@@ -519,3 +519,7 @@ class SecureAuthTests(TestCase):
             HTTP_ORIGIN='null',
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_html_pages_are_not_cached(self):
+        response = self.client.get(reverse('login'))
+        self.assertEqual(response['Cache-Control'], 'no-store')
