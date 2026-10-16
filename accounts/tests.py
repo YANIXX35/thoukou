@@ -492,3 +492,30 @@ class SecureAuthTests(TestCase):
         response = self.client.get(reverse('login'))
         self.assertEqual(response['X-Frame-Options'], 'DENY')
         self.assertIn("default-src 'self'", response['Content-Security-Policy'])
+
+    def test_referrer_policy_keeps_same_origin_for_csrf(self):
+        response = self.client.get(reverse('login'))
+        self.assertEqual(response['Referrer-Policy'], 'same-origin')
+
+    def test_browser_login_with_origin_header_passes_csrf(self):
+        # Reproduit un vrai navigateur : jeton CSRF + en-tête Origin du site
+        client = self.client_class(enforce_csrf_checks=True)
+        client.get(reverse('login'))
+        token = client.cookies['csrftoken'].value
+        response = client.post(
+            reverse('login'),
+            {'username': 'alice', 'password': PASSWORD, 'csrfmiddlewaretoken': token},
+            HTTP_ORIGIN='http://testserver',
+        )
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_post_with_null_origin_is_rejected(self):
+        client = self.client_class(enforce_csrf_checks=True)
+        client.get(reverse('login'))
+        token = client.cookies['csrftoken'].value
+        response = client.post(
+            reverse('login'),
+            {'username': 'alice', 'password': PASSWORD, 'csrfmiddlewaretoken': token},
+            HTTP_ORIGIN='null',
+        )
+        self.assertEqual(response.status_code, 403)

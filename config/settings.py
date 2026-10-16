@@ -134,7 +134,9 @@ PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', 'http://127.0.0.1:8000')
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_REFERRER_POLICY = 'no-referrer'
+# same-origin : le Referer/Origin est envoyé à notre site (nécessaire au contrôle
+# CSRF de Django, sinon Chrome envoie « Origin: null ») mais jamais aux sites externes.
+SECURE_REFERRER_POLICY = 'same-origin'
 X_FRAME_OPTIONS = 'DENY'
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

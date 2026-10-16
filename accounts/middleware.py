@@ -9,6 +9,6 @@ class SecurityHeadersMiddleware:
             "default-src 'self'; img-src 'self' data:; style-src 'self'; "
             "script-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'",
         )
-        response.setdefault('Referrer-Policy', 'no-referrer')
+        response.setdefault('Referrer-Policy', 'same-origin')
         response.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
         return response
